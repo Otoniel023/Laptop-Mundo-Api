@@ -4,6 +4,7 @@ using ApiLaptopMundo.Application.Interfaces;
 using ApiLaptopMundo.WebApi.Endpoints;
 using Scalar.AspNetCore;
 using Supabase;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +31,17 @@ builder.Services.AddScoped(_ => new Client(supabaseUrl, supabaseKey, new Supabas
 builder.Services.AddSupabaseAuth(jwtSecret);
 builder.Services.AddAuthorization();
 
+// Configure Forwarded Headers for Cloudflare
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Cloudflare IPs change frequently, so in some environments you might need to clear these
+    // but for security it's better to know your edge. 
+    // Clearing them for now to ensure it works with Cloudflare's dynamic IPs.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Add OpenAPI/Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -47,6 +59,9 @@ builder.Services.AddScoped<IAdminDiscountService, AdminDiscountService>();
 // TODO: Add more services as they are implemented
 
 var app = builder.Build();
+
+// Use Forwarded Headers first
+app.UseForwardedHeaders();
 
 // Configure Scalar API Documentation
 app.MapOpenApi();
